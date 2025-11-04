@@ -29,25 +29,34 @@ import trimesh
 
 from tqdm import tqdm
 
-def get_data():
+def get_grab_sample_data(base_dir, tgt_obj_name):
     n_samples = 2048
-    pcd = trimesh.load('/home/atiwari/projects/object_manipulation/assets/sample_data/test_objs/binoculars.ply')
+    # for src_dir in ['train_objs', 'test_objs', 'val_objs']:
+    #     tgt_path = os.path.join(base_dir, split_dir, f"{tgt_obj_name}.ply")
+    #     if os.path.exists(tgt_path):
+    #         pcd = trimesh.load(tgt_path)
+    pcd = trimesh.load(os.path.join(base_dir, tgt_obj_name))
     verts = pcd.vertices
-    sampling_indices = np.random.choice(verts.shape[0], size=n_samples, replace=False)
+    N = verts.shape[0]
+    if N > n_samples:
+        sampling_indices = np.random.choice(verts.shape[0], size=n_samples, replace=False)
+    else:
+        sampling_indices = np.random.choice(verts.shape[0], size=n_samples, replace=True)
+
     sampled_verts = verts[sampling_indices]
-
-
     return torch.tensor(sampled_verts, device='cuda', dtype=torch.float32)[None]
+
+def run_on_grab_sample_data(trainer, base_dir, tgt_obj_name):
+    inp_pcd = get_grab_sample_data(base_dir, tgt_obj_name)
+    out = trainer.model.recont(inp_pcd)
+    _ = trimesh.PointCloud(inp_pcd[0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/testing/{tgt_obj_name}_input.obj")
+    _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/testing/{tgt_obj_name}_recon.obj")
+    _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/testing/{tgt_obj_name}_latent_pts.obj")
 
 # inference_vae_main.py
 # Just copy train_dist.py and modify ONLY the main() function
 
-def main_logic(trainer):
-    # inp_pcd = get_data()
-    # out = trainer.model.recont(inp_pcd)
-    # _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export("./outputs/recon_outputs/testing/recon_binoculars.obj")
-    # _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export("./outputs/recon_outputs/testing/latent_pts_binoculars.obj")
-
+def run_on_grab_full_data(trainer):
     import sys
     sys.path.append("../object_manipulation")
 
@@ -136,7 +145,11 @@ def main(args, config):
     
     # TODO: Add your reconstruction code here
     # DO NOT call trainer.train_epochs() or trainer.eval_nll() etc.
-    main_logic(trainer)
+    # run_on_grab_full_data(trainer)
+    
+    base_dir = "/scratch/clear/atiwari/datasets/grabnet_extract/tools/object_meshes/contact_meshes"
+    for tgt_obj_name in tqdm(os.listdir(base_dir)):
+        run_on_grab_sample_data(trainer, base_dir, tgt_obj_name)
 
 
 # Keep get_args() and __main__ completely unchanged from train_dist.py
