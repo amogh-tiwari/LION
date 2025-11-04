@@ -18,6 +18,17 @@ import matplotlib
 matplotlib.use('Agg')
 from PIL import Image
 # Visualization
+import trimesh
+
+def save_pcd(output, out_dir, out_names=''):
+    assert len(output) == len(out_names) or out_names == ''
+    os.makedirs(out_dir, exist_ok=True)
+    # out_name_template = "_"+out_name_template if out_name_template is not '' else out_name_template
+    for idx in range(output.shape[0]):
+        pts = output[idx]
+        pcd = trimesh.PointCloud(pts.cpu().numpy())
+        out_name = out_names[idx] if out_names != '' else f"{idx:03d}"
+        _ = pcd.export(os.path.join(out_dir, out_name) + ".obj")
 
 def plot_points(output, output_name=None):
     from utils.data_helper import normalize_point_clouds

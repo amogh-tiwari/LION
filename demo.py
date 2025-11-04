@@ -15,7 +15,7 @@ import torch
 from PIL import Image
 from default_config import cfg as config
 from models.lion import LION
-from utils.vis_helper import plot_points
+from utils.vis_helper import plot_points, save_pcd
 from huggingface_hub import hf_hub_download 
 
 model_path = './lion_ckpt/text2shape/chair/checkpoints/model.pt'
@@ -26,7 +26,8 @@ lion = LION(config)
 lion.load_model(model_path)
 
 if config.clipforge.enable:
-    input_t = ["a swivel chair, five wheels"] 
+    # input_t = ["a swivel chair, five wheels"] 
+    input_t = ["a swivel chair, five wheels", "a sofa like chair", "a chair shaped like an aeroplane"] 
     device_str = 'cuda'
     clip_model, clip_preprocess = clip.load(
                         config.clipforge.clip_model, device=device_str)    
@@ -37,8 +38,12 @@ if config.clipforge.enable:
     print('clip_feat', clip_feat.shape)
 else:
     clip_feat = None
+
 output = lion.sample(1 if clip_feat is None else clip_feat.shape[0], clip_feat=clip_feat)
 pts = output['points']
+
+out_names = ["_".join(t.replace(",", " ").split(" ")) for t in input_t]
+save_pcd(pts, "outputs/demo_outputs", out_names)
 img_name = "/tmp/tmp.png"
 plot_points(pts, output_name=img_name)
 img = Image.open(img_name)

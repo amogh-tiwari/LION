@@ -10,5 +10,7 @@ __pycache__/
 models/pvcnn/functional/build/
 *.sh
 lion_ckpt
-data/
+data
 datasets/test_data
+outputs
+results
