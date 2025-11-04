@@ -25,7 +25,7 @@ from utils.evaluation_metrics_fast import compute_all_metrics, \
     jsd_between_point_cloud_sets, print_results, write_results
 from utils.evaluation_metrics_fast import EMD_CD
 CD_ONLY = int(os.environ.get('CD_ONLY', 0))
-VIS = 1
+VIS = 0
 
 def pair_vis(gen_x, tr_x, titles, subtitles, writer, step=-1):
     img_list = []
@@ -328,7 +328,7 @@ def compute_score(output_name, ref_name, batch_size_test=256, device_str='cuda',
     #     run_time = time.strftime('%m%d-%H%M-%S')
     #     f.write('<< date: %s >>\n' % run_time)
     #     f.write('%s\n%s\n' % (exp.url, msg))
-    results['url'] = exp.url
+    results['url'] = exp.url if exp is not None else None
     if not skip_write:
         os.makedirs('results', exist_ok=True)
         msg = write_results(
