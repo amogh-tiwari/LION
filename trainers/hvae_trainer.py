@@ -59,7 +59,7 @@ class Trainer(BaseTrainer):
             dist.barrier()
             logger.info('pass barrier, device={}', device)
 
-        self.train_loader, self.test_loader = self.build_data()
+        # self.train_loader, self.test_loader = self.build_data()
 
         # The optimizer
         self.optimizer, self.scheduler = utils.get_opt(
@@ -74,9 +74,9 @@ class Trainer(BaseTrainer):
         self.num_points = self.cfg.data.tr_max_sample_points
         logger.info('done init trainer @{}', device)
 
-        # Prepare for evaluation
-        # init the latent for validate
-        self.prepare_vis_data()
+        # # Prepare for evaluation
+        # # init the latent for validate
+        # self.prepare_vis_data()
     # ------------------------------------------- #
     #   training fun                              #
     # ------------------------------------------- #
