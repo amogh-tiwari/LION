@@ -3,7 +3,7 @@ if [ -z "$1" ]
     echo "Require NGPU input; "
     exit
 fi
-DATA=" ddpm.input_dim 3 data.cates car "
+DATA=" ddpm.input_dim 3 data.cates all "
 NGPU=$1 # 
 num_node=1
 BS=32 
@@ -51,4 +51,4 @@ $ENT \
     shapelatent.decoder_num_points 2048 \
     data.tr_max_sample_points 2048 data.te_max_sample_points 2048 \
     ddpm.loss_type $loss cmt "lion" \
-    $DATA viz.viz_order [2,0,1] data.recenter_per_shape False data.normalize_global True 
+    $DATA viz.viz_order [2,0,1] data.recenter_per_shape False data.normalize_global False data.normalize_shape_box True #True 
