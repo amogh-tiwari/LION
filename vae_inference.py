@@ -62,10 +62,10 @@ def normalize(all_points, normalization_type):
         print("!!! WARNING !!! Unknown normalization type, returning unnormalized points")
         # add some 'identity normalization'.
         exit()
-    
+
     all_points = (all_points - all_points_mean) / all_points_std
     
-    return all_points
+    return all_points, all_points_mean, all_points_std
 
 def fetch_vertices(inp_verts, normalization_type):
     if inp_verts.shape[0] != NUM_VERTICES_TO_SAMPLE: # inp_verts: Nx3
@@ -74,8 +74,8 @@ def fetch_vertices(inp_verts, normalization_type):
         sampled_verts = inp_verts
 
     sampled_verts = torch.tensor(sampled_verts, device='cuda', dtype=torch.float32)[None]
-    sampled_verts = normalize(sampled_verts, normalization_type)
-    return sampled_verts
+    sampled_verts, all_pts_mean, all_pts_std = normalize(sampled_verts, normalization_type)
+    return sampled_verts, all_pts_mean, all_pts_std
 
 def load_file_and_fetch_vertices(pcd_fp, normalization_type):
     inp_pcd = trimesh.load(pcd_fp)
@@ -85,7 +85,7 @@ def load_file_and_fetch_vertices(pcd_fp, normalization_type):
 def run_on_grab_sample_data(trainer, base_dir, tgt_obj_name):
     inp_pcd = trimesh.load(os.path.join(base_dir, tgt_obj_name))
     inp_verts = inp_pcd.vertices
-    sampled_verts = fetch_vertices(inp_verts, 'normalize_shape_box')
+    sampled_verts, all_points_mean, all_points_std = fetch_vertices(inp_verts, 'normalize_shape_box')
 
     pcd_mins = inp_verts.min(axis=0)
     pcd_maxs = inp_verts.max(axis=0)  # (B, 3)
@@ -101,7 +101,9 @@ def run_on_grab_sample_data(trainer, base_dir, tgt_obj_name):
     out_sample = {
         'mu': out['latent_list'][0][1][s_idx].detach().cpu().numpy(),
         'sigma': out['latent_list'][0][2][s_idx].detach().cpu().numpy(),
-        'size': pcd_size # No s_idx indexing here as long as it's a single batch operation.
+        'xyz_extent': pcd_size, # No s_idx indexing here as long as it's a single batch operation.
+        'shift_factor': all_points_mean[s_idx][0].detach().cpu().numpy(),
+        'scale_factor': all_points_std[s_idx][0].detach().cpu().numpy() # NOTE: 'std' here is a misnomer. It's actually the scale info.
     }
     out_fp = f"./outputs/recon_outputs/grab_testing/embeds/{tgt_obj_name.split('.')[0]}_embeds.npz"
     os.makedirs(os.path.dirname(out_fp), exist_ok=True)
@@ -152,13 +154,13 @@ def run_on_grab_full_data(trainer):
             pcd_maxs = inp_verts.max(dim=1)[0]  # (B, 3)
             pcd_size = pcd_maxs - pcd_mins      # (B, 3) - [x_range, y_range, z_range]
 
-            inp_verts = normalize(batch['verts_object'], 'normalize_shape_box')
+            inp_verts, all_points_mean, all_points_std = normalize(batch['verts_object'], 'normalize_shape_box')
             # Disable gradient computation for inference
             with torch.no_grad():
                 out = trainer.model.recont(inp_verts)
                 
             for s_idx in range(len(frame_names)):
-                out_fp = frame_names[s_idx].replace("grabnet_extract/", "grabnet_processing/lion_embeds_only_mu_sigma_after_normalizing_with_xyz_extents2/")
+                out_fp = frame_names[s_idx].replace("grabnet_extract/", "grabnet_processing/lion_embeds_only_mu_sigma_after_normalizing_with_scale_factor/")
                 
                 # Extract and convert sample from batch
                 # 'latent_list' structure: 
@@ -173,7 +175,8 @@ def run_on_grab_full_data(trainer):
                     # ]
                     'mu': out['latent_list'][0][1][s_idx].detach().cpu().numpy(),
                     'sigma': out['latent_list'][0][2][s_idx].detach().cpu().numpy(),
-                    'size': pcd_size[s_idx].detach().cpu().numpy()
+                    'shift_factor': all_points_mean[s_idx][0].detach().cpu().numpy(),
+                    'scale_factor': all_points_std[s_idx][0].detach().cpu().numpy() # NOTE: 'std' here is a misnomer. It's actually scaling factor.
                 }
                 os.makedirs(os.path.dirname(out_fp), exist_ok=True)
                 np.savez_compressed(out_fp, **out_sample)
