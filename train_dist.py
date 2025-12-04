@@ -105,7 +105,7 @@ def main(args, config):
 def get_args():
     parser = argparse.ArgumentParser('encoder decoder examiner')
     # experimental results
-    parser.add_argument('--exp_root', type=str, default='../exp',
+    parser.add_argument('--exp_root', type=str, default='exp',
                         help='location of the results')
     # parser.add_argument('--save', type=str, default='exp',
     #                     help='id used for storing intermediate results')
