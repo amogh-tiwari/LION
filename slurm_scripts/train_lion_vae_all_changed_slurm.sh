@@ -23,4 +23,4 @@ set -x                                          # activate echo of launched comm
 
 echo "$SLURM_ARRAY_TASK_ID"
 
-srun bash script/train_vae_all.sh 4
+srun bash script/train_vae_all_changed.sh 4

@@ -15,3 +15,5 @@ datasets/test_data
 outputs
 results
 oar_scripts/OAR*std*
+*err*
+*out*
