@@ -23,7 +23,7 @@ from utils import exp_helper, io_helper
 from utils import utils
 
 
-@logger.catch(onerror=lambda _: sys.exit(1), reraise=False)
+# @logger.catch(onerror=lambda _: sys.exit(1), reraise=False)
 def main(args, config):
     # -- trainer -- #
     logger.info('use trainer: {}', config.trainer.type)
