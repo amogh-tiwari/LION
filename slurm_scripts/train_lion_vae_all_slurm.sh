@@ -4,7 +4,7 @@
 #SBATCH --error=TravailGPU_%j.err               # error file (%j = job ID)
 #SBATCH --account=tuy@v100                      # V100 accounting
 #SBATCH --gres=gpu:4                            # reserve 4 GPUs
-#SBATCH --cpus-per-task=6                      # reserve 10 CPUs per task (and associated memory)
+#SBATCH --cpus-per-task=24                      # reserve 10 CPUs per task (and associated memory)
 #SBATCH --time=16:00:00                         # maximum allocation time "(HH:MM:SS)"
 #SBATCH --partition=gpu_p2
 
