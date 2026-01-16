@@ -3,17 +3,37 @@ if [ -z "$1" ]
     echo "Require NGPU input; "
     exit
 fi
+
+# --- Add this section to handle the new arguments ---
+RESUME_FLAG=""
+PRETRAINED_PATH=""
+
+if [ "$2" == "resume" ] # Check for the 'resume' argument
+then
+    RESUME_FLAG="--resume"
+    if [ ! -z "$3" ] # Check if a path for pretrained model is provided
+    then
+        PRETRAINED_PATH="--pretrained $3"
+        echo "Resuming training with checkpoint: $3"
+    else
+        echo "[WARNING] Resume flag set, but no pretrained path provided."
+    fi
+else
+    echo "Starting new training run (no resume/pretrained)."
+fi
+# --------------------------------------------------
+
 DATA=" ddpm.input_dim 3 data.cates all "
 NGPU=$1 # 
 num_node=1
-BS=32
+BS=16
 total_bs=$(( $NGPU * $BS ))
 if (( $total_bs > 128 )); then 
     echo "[WARNING] total batch_size larger than 128 may lead to unstable training, please reduce the size"
     exit
 fi
 
-ENT="python train_dist.py --num_process_per_node $NGPU "
+ENT="python train_dist.py --num_process_per_node $NGPU --exp_root ./exp/regular"
 kl=0.5  
 lr=1e-3
 latent=1
@@ -21,9 +41,9 @@ skip_weight=0.01
 sigma_offset=6.0
 loss='l1_sum'
 
-$ENT --resume \
-    --pretrained ./exp/1209/all/1c0883h_hvae_lion_B8/checkpoints/snapshot \ 
-    ddpm.num_steps 1 ddpm.ema 0 \
+echo "Starting..."
+
+$ENT $RESUME_FLAG $PRETRAINED_PATH ddpm.num_steps 1 ddpm.ema 0 \
     trainer.opt.vae_lr_warmup_epochs 0 \
     latent_pts.ada_mlp_init_scale 0.1 \
     sde.kl_const_coeff_vada 1e-7 \
@@ -47,4 +67,4 @@ $ENT --resume \
     shapelatent.decoder_num_points 2048 \
     data.tr_max_sample_points 2048 data.te_max_sample_points 2048 \
     ddpm.loss_type $loss cmt "lion" \
-    $DATA viz.viz_order [2,0,1] data.recenter_per_shape False data.normalize_global False data.normalize_shape_box True #True 
+    $DATA viz.viz_order [2,0,1] data.recenter_per_shape False data.normalize_global False data.normalize_shape_box True #True

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=TravailGPU                   # name of job
-#SBATCH --output=TravailGPU_%j.out              # output file (%j = job ID)
-#SBATCH --error=TravailGPU_%j.err               # error file (%j = job ID)
+#SBATCH --job-name=lion_regular                   # name of job
+#SBATCH --output=lion_regular_%j.out              # output file (%j = job ID)
+#SBATCH --error=lion_regular_%j.err               # error file (%j = job ID)
 #SBATCH --account=tuy@v100                      # V100 accounting
 #SBATCH --gres=gpu:4                            # reserve 4 GPUs
 #SBATCH --cpus-per-task=24                      # reserve 10 CPUs per task (and associated memory)
@@ -23,4 +23,5 @@ set -x                                          # activate echo of launched comm
 
 echo "$SLURM_ARRAY_TASK_ID"
 
-srun bash script/train_vae_all.sh 4
+srun bash script/train_vae_all.sh 4 resume ./exp/1209/all/1c0883h_hvae_lion_B8/checkpoints/snapshot
+
