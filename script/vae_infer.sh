@@ -13,7 +13,7 @@ if (( $total_bs > 128 )); then
     exit
 fi
 
-ENT="python vae_inference.py --num_process_per_node $NGPU "
+ENT="python vae_infer.py --num_process_per_node $NGPU "
 kl=0.5  
 lr=1e-3
 latent=1
