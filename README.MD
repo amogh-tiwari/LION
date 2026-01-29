@@ -3,7 +3,7 @@
 ---
 Option-1 (not tested): 
 1. Create conda env using the yaml file: `conda env create -f env.yaml`
-Then, jump to step-3.
+Then, jump to step-3 below.
 
 Option-2 (tested)
 1. Create conda env with python 3.8.12: `conda create -n <env_name> python=3.8.12"
@@ -25,3 +25,8 @@ If there are problems in the cuda build, look for version issues with cuda/gcc. 
 4. python build_pkg.py
 Sometimes (happenned once to me), it can get stuck at the start before even starting to build pkgs. In that case, try clearing the cache from previous failed build attempts: `rm -rf ~/.cache/torch_extensions/*`. Not sure why (or even if) it helps, but it did solve the problem for me, and can't harm for sure. 
 
+---
+# Inference
+* Refer to `README_ORIGINAL.md` for author's instructions.
+* For custom commands, currently, I use `bash script/vae_inference.sh <num_gpus>` typically, I use 1 for num_gpus.
+* **NOTE**: For running above script on single object vs multiple objects, modify things inside `main()`. See the `run_on_file_path()` and `run_on_grab_sample_data()` function calls. **Also**, comment out the `self.train_loader, self.test_loader = self.build_data()` and `self.prepare_vis_data()` lines in `trainers/hvae_trainers.py` to SIGNIFICANTLY speed things up.

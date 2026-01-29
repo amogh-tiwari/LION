@@ -44,6 +44,8 @@ def sample_vertices(verts, n_samples):
 
 def normalize(all_points, normalization_type):
     input_dim = 3
+    normalize_std_per_axis = False
+
     if normalization_type == 'normalize_shape_box':
         # Below code is used to get right additive (subratctive) and scaling factors to get inputs in range [-1,1]
         # Suppose, x \in [a,b]
@@ -58,14 +60,65 @@ def normalize(all_points, normalization_type):
             ((torch.amax(all_points, axis=1)).reshape(B, 1, input_dim) -
                 (torch.amin(all_points, axis=1)).reshape(B, 1, input_dim)),
             axis=-1).reshape(B, 1, 1) / 2
+    
+    elif normalization_type == 'normalize_global':
+        # Global normalization: compute mean and std across ALL points in ALL batches
+        all_points_mean = all_points.reshape(
+            -1, input_dim).mean(axis=0).reshape(1, 1, input_dim)
+        
+        if normalize_std_per_axis:
+            # Separate std for each dimension (x, y, z)
+            all_points_std = all_points.reshape(
+                -1, input_dim).std(axis=0).reshape(1, 1, input_dim)
+        else:
+            # Single std across all dimensions
+            all_points_std = all_points.reshape(-1).std(
+                axis=0).reshape(1, 1, 1)
+
     else:
-        print("!!! WARNING !!! Unknown normalization type, returning unnormalized points")
+        print("!!! WARNING !!! Unknown normalization type, exitting ...")
         # add some 'identity normalization'.
         exit()
+
+    print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")        
 
     all_points = (all_points - all_points_mean) / all_points_std
     
     return all_points, all_points_mean, all_points_std
+
+def normalize_grab_pre_known(all_points, normalization_type):
+    input_dim = 3
+    normalize_std_per_axis = False
+    all_points_mean = torch.tensor([[[-0.0012,  0.0006, -0.0026]]]).to(device='cuda:0', dtype=torch.float32)
+    all_points_std = torch.tensor([[[0.0338]]]).to(device='cuda:0', dtype=torch.float32)
+
+    if normalization_type == 'normalize_global':
+        # # Global normalization: compute mean and std across ALL points in ALL batches
+        # all_points_mean = all_points.reshape(
+        #     -1, input_dim).mean(axis=0).reshape(1, 1, input_dim)
+        
+        # if normalize_std_per_axis:
+        #     # Separate std for each dimension (x, y, z)
+        #     all_points_std = all_points.reshape(
+        #         -1, input_dim).std(axis=0).reshape(1, 1, input_dim)
+        # else:
+        #     # Single std across all dimensions
+        #     all_points_std = all_points.reshape(-1).std(
+        #         axis=0).reshape(1, 1, 1)
+        print("!!! WARNING !!! Doing GRAB specific normalization !!!")
+        pass
+
+    else:
+        print("!!! WARNING !!! Unknown normalization type for this normalization function, exitting ...")
+        # add some 'identity normalization'.
+        exit()
+
+    # print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")        
+
+    all_points = (all_points - all_points_mean) / all_points_std
+    
+    return all_points, all_points_mean, all_points_std
+
 
 def fetch_vertices(inp_verts, normalization_type):
     if inp_verts.shape[0] != NUM_VERTICES_TO_SAMPLE: # inp_verts: Nx3
@@ -79,7 +132,7 @@ def fetch_vertices(inp_verts, normalization_type):
 
 def load_file_and_fetch_vertices(pcd_fp, normalization_type):
     inp_pcd = trimesh.load(pcd_fp)
-    sampled_verts = fetch_vertices(inp_pcd.vertices, normalization_type)
+    sampled_verts, _, _ = fetch_vertices(inp_pcd.vertices, normalization_type)
     return sampled_verts
 
 def run_on_grab_sample_data(trainer, base_dir, tgt_obj_name):
@@ -109,14 +162,14 @@ def run_on_grab_sample_data(trainer, base_dir, tgt_obj_name):
     os.makedirs(os.path.dirname(out_fp), exist_ok=True)
     np.savez_compressed(out_fp, **out_sample)
 
-def run_on_file_path(trainer, in_fp):
+def run_on_file_path(trainer, in_fp, out_fp):
     sampled_verts = load_file_and_fetch_vertices(in_fp, 'normalize_shape_box')
     tgt_obj_name = in_fp.split("/")[-1].split(".")[0]
 
     out = trainer.model.recont(sampled_verts)
-    _ = trimesh.PointCloud(sampled_verts[0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/shapenet_testing/{tgt_obj_name}_input.obj")
-    _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/shapenet_testing/{tgt_obj_name}_recon.obj")
-    _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export(f"./outputs/recon_outputs/shapenet_testing/{tgt_obj_name}_latent_pts.obj")
+    _ = trimesh.PointCloud(sampled_verts[0].detach().cpu().numpy()).export(f"{out_fp}/{tgt_obj_name}_input.obj")
+    _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export(f"{out_fp}/{tgt_obj_name}_recon.obj")
+    _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export(f"{out_fp}/{tgt_obj_name}_latent_pts.obj")
 
 def run_on_grab_full_data(trainer):
     import sys
@@ -141,6 +194,7 @@ def run_on_grab_full_data(trainer):
     # ds_val_loader.frame_names = ds_val_loader.frame_names[-128:]
     # ds_test_loader.frame_names = ds_test_loader.frame_names[-128:]
 
+    cntr = 0
     split_list = ['test', 'val', 'train']
     trainer.model.eval()
     for split in split_list:
@@ -154,13 +208,17 @@ def run_on_grab_full_data(trainer):
             pcd_maxs = inp_verts.max(dim=1)[0]  # (B, 3)
             pcd_size = pcd_maxs - pcd_mins      # (B, 3) - [x_range, y_range, z_range]
 
-            inp_verts, all_points_mean, all_points_std = normalize(batch['verts_object'], 'normalize_shape_box')
+            # print(f"Shape: {inp_verts.shape} | Mean: {inp_verts.mean()} | Max: {inp_verts.max()} | Min: {inp_verts.min()}")
+            inp_verts, all_points_mean, all_points_std = normalize_grab_pre_known(batch['verts_object'], 'normalize_global')
+            # print(f"Shape: {inp_verts.shape} | Mean: {inp_verts.mean()} | Max: {inp_verts.max()} | Min: {inp_verts.min()}")
+            # print(inp_verts.shape)
+
             # Disable gradient computation for inference
             with torch.no_grad():
                 out = trainer.model.recont(inp_verts)
                 
             for s_idx in range(len(frame_names)):
-                out_fp = frame_names[s_idx].replace("grabnet_extract/", "grabnet_processing/lion_embeds_only_mu_sigma_after_normalizing_with_scale_factor/")
+                out_fp = frame_names[s_idx].replace("grabnet_extract/", "grabnet_processing/lion_embeds_retrained_global_normalization/")
                 
                 # Extract and convert sample from batch
                 # 'latent_list' structure: 
@@ -175,11 +233,64 @@ def run_on_grab_full_data(trainer):
                     # ]
                     'mu': out['latent_list'][0][1][s_idx].detach().cpu().numpy(),
                     'sigma': out['latent_list'][0][2][s_idx].detach().cpu().numpy(),
-                    'shift_factor': all_points_mean[s_idx][0].detach().cpu().numpy(),
-                    'scale_factor': all_points_std[s_idx][0].detach().cpu().numpy() # NOTE: 'std' here is a misnomer. It's actually scaling factor.
+                    # 'shift_factor': all_points_mean[s_idx][0].detach().cpu().numpy(),
+                    # 'scale_factor': all_points_std[s_idx][0].detach().cpu().numpy() # NOTE: 'std' here is a misnomer. It's actually scaling factor.
                 }
                 os.makedirs(os.path.dirname(out_fp), exist_ok=True)
                 np.savez_compressed(out_fp, **out_sample)
+                if cntr % 1000 == 0:
+                    viz_out_dir = os.path.join(os.path.dirname(out_fp), "viz")
+                    os.makedirs(viz_out_dir, exist_ok=True)
+                    tgt_obj_name = out_fp.split("/")[-2].split("_")[0]
+                    _ = trimesh.PointCloud(inp_verts[s_idx].detach().cpu().numpy()).export(f"{viz_out_dir}/{cntr:04d}_{tgt_obj_name.split('.')[0]}_input.obj")
+                    _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export(f"{viz_out_dir}/{cntr:04d}_{tgt_obj_name.split('.')[0]}_recon.obj")
+                    # _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export(f"{viz_out_dir}/latent_pts/{cntr:04d}_{tgt_obj_name.split('.')[0]}_latent_pts.obj")
+
+                cntr+= 1
+
+
+def run_on_dir(trainer, in_dir, out_dir, normalization_type, batch_size=4):
+    file_names = os.listdir(in_dir)
+    tgt_file_exts = ["ply", "obj"]
+    file_names = [f for f in file_names 
+                if not os.path.isdir(f) and f.split(".")[-1] in tgt_file_exts]
+    file_names = [f for f in file_names if not "body.ply" in f]
+    all_points = []
+    for fn in file_names:
+        fp = os.path.join(in_dir, fn)
+        verts = trimesh.load(fp).vertices
+        verts_sampled = sample_vertices(verts, NUM_VERTICES_TO_SAMPLE)
+        all_points.append(verts_sampled)
+    all_points = np.asarray(all_points)
+    all_points = torch.tensor(all_points, device='cuda', dtype=torch.float32)
+    print(f"Shape: {all_points.shape} | Mean: {all_points.mean()} | Max: {all_points.max()} | Min: {all_points.min()}")
+    all_points_norm, all_points_mean, all_points_std = normalize(all_points, normalization_type)
+    print(f"Shape: {all_points_norm.shape} | Mean: {all_points_norm.mean()} | Max: {all_points_norm.max()} | Min: {all_points_norm.min()}")
+    print(all_points.shape)
+
+    all_outputs = []
+    for i in range(0, len(all_points_norm), batch_size):
+        batch = all_points_norm[i:i+batch_size]
+        out = trainer.model.recont(batch)
+        out_sample = {}
+        # Assuming batch size is always 1
+        out_sample = {
+            'mu': out['latent_list'][0][1][0].detach().cpu().numpy(),
+            'sigma': out['latent_list'][0][2][0].detach().cpu().numpy(),
+        }
+
+        os.makedirs(out_dir, exist_ok=True)
+        os.makedirs(os.path.join(out_dir, "latent_codes"), exist_ok=True)
+        os.makedirs(os.path.join(out_dir, "embeds"), exist_ok=True)
+
+        tgt_obj_name = file_names[i].split('.')[0]
+        np.savez_compressed(os.path.join(out_dir, "embeds", f"{tgt_obj_name}"), **out_sample)
+
+        # Assuming batch size is always 1
+        _ = trimesh.PointCloud(batch[0].detach().cpu().numpy()).export(f"{out_dir}/{tgt_obj_name}_input.obj")
+        _ = trimesh.PointCloud(out['x_0_pred'][0].detach().cpu().numpy()).export(f"{out_dir}/{tgt_obj_name}_recon.obj")
+        _ = trimesh.PointCloud(out['vis/latent_pts'][0].detach().cpu().numpy()).export(f"{out_dir}/latent_pts/{tgt_obj_name}_latent_pts.obj")
+    
 
 
 @logger.catch(onerror=lambda _: sys.exit(1), reraise=False)
@@ -226,11 +337,14 @@ def main(args, config):
     
     # run_on_grab_full_data(trainer)
     
-    base_dir = "/scratch/clear/atiwari/datasets/grabnet_extract/tools/object_meshes/contact_meshes"
-    for tgt_obj_name in tqdm(os.listdir(base_dir)):
-        run_on_grab_sample_data(trainer, base_dir, tgt_obj_name)
+    # base_dir = "/scratch/clear/atiwari/datasets/grabnet_extract/tools/object_meshes/contact_meshes"
+    # for tgt_obj_name in tqdm(os.listdir(base_dir)):
+    #     run_on_grab_sample_data(trainer, base_dir, tgt_obj_name)
 
     # run_on_file_path(trainer, '/scratch/clear/atiwari/lion/data/ShapeNetCore.v2.PC15k_visualizations/02691156/test/fff513f407e00e85a9ced22d91ad7027.obj')
+    # run_on_file_path(trainer, '../grabnet/assets/sample_data/apple.ply', './outputs/recon_outputs/intermediate_ckpt_eval/changed')
+    
+    run_on_dir(trainer, in_dir="/scratch/clear/atiwari/datasets/grabnet_extract/tools/object_meshes/contact_meshes", out_dir="outputs/recon_outputs/pretrained_ckpt/", normalization_type='normalize_global', batch_size=1)
 
 # Keep get_args() and __main__ completely unchanged from train_dist.py
 if __name__ == '__main__':

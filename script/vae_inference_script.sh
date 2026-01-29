@@ -20,8 +20,14 @@ latent=1
 skip_weight=0.01 
 sigma_offset=6.0
 loss='l1_sum'
+
 vae_ckpt="./lion_ckpt/unconditional/all55/checkpoints/vae_only.pt"
+# vae_ckpt="./exp/regular/0114/all/f6a59dh_hvae_lion_B16/checkpoints/snapshot"
+# vae_ckpt="./exp/changed/0114/all/376fc0h_hvae_lion_B16/checkpoints/snapshot"
+
 config_file="./lion_ckpt/unconditional/all55/cfg.yml"
+# config_file="./exp/regular/0114/all/f6a59dh_hvae_lion_B16/cfg.yml"
+# config_file="./exp/changed/0114/all/376fc0h_hvae_lion_B16/cfg.yml"
 
 $ENT \
     --pretrained $vae_ckpt \
