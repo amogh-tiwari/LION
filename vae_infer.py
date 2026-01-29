@@ -263,9 +263,9 @@ def run_on_dir(trainer, in_dir, out_dir, normalization_type, batch_size=4):
         all_points.append(verts_sampled)
     all_points = np.asarray(all_points)
     all_points = torch.tensor(all_points, device='cuda', dtype=torch.float32)
-    print(f"Shape: {all_points.shape} | Mean: {all_points.mean()} | Max: {all_points.max()} | Min: {all_points.min()}")
+    print(f"Shape: {all_points.shape} | Mean: {all_points.mean()} | Max: {all_points.max()} | Min: {all_points.min()} | Std: {all_points.std()}")
     all_points_norm, all_points_mean, all_points_std = normalize(all_points, normalization_type)
-    print(f"Shape: {all_points_norm.shape} | Mean: {all_points_norm.mean()} | Max: {all_points_norm.max()} | Min: {all_points_norm.min()}")
+    print(f"Shape: {all_points_norm.shape} | Mean: {all_points_norm.mean()} | Max: {all_points_norm.max()} | Min: {all_points_norm.min()} | Std: {all_points_norm.std()}")
     print(all_points.shape)
 
     all_outputs = []
