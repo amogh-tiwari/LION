@@ -20,21 +20,25 @@ import trimesh
 from tqdm import tqdm
 
 from vae_infer_utils.setup import setup
-from vae_infer_utils.run_utils import run_on_dataset
+from vae_infer_utils.run_utils import run_on_dataset, run_on_ho3d_subset
 
 @logger.catch(onerror=lambda _: sys.exit(1), reraise=False)
 def infer(args, config):
     args, config, trainer, writer, nparam = setup(args, config)
     trainer.model.eval()
-
+    batch_size=2
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    out_dir_base = '/scratch/clear/atiwari/datasets/ho3d_v3_processing/HO3D_v3'
+    
+    run_on_ho3d_subset(trainer, batch_size, device, out_dir_base=out_dir_base)
     # run_on_dataset(trainer, 'ho3d_2048')
     # Scaling params; Mean: [[[-0.00059158 -0.00091937 -0.00367902]]] | Std: [[[0.03672426]]]
 
-    run_on_dataset(trainer, 
-                   'custom', 
-                   in_fp='/scratch/clear/atiwari/datasets/ho3d_v3_processing/models_sampled/verts_2048/021_bleach_cleanser/textured_simple.obj',
-                   out_fp='./temp_outputs/021_bleach_cleanser/'
-                   )
+    # run_on_dataset(trainer, 
+    #                'custom', 
+    #                in_fp='/scratch/clear/atiwari/datasets/ho3d_v3_processing/models_sampled/verts_2048/002_master_chef_can/textured_simple.obj',
+    #                out_fp='./temp_outputs/002_master_chef_can/'
+    #                )
     
 
 # Copied get_args() and __main__ block from train_dist.py, keeping it unchanged
