@@ -1,13 +1,18 @@
 import torch
 
 def _global_normalize_given_params(all_points, all_points_mean, all_points_std):
-    print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")        
+    print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")
     all_points = (all_points - all_points_mean) / all_points_std
     return all_points, all_points_mean, all_points_std
 
-def normalize(all_points):
+def normalize(all_points, normalization_params=None):
     input_dim = 3
     normalize_std_per_axis = False
+
+    if normalization_params is not None:
+        all_points, all_points_mean, all_points_std = _global_normalize_given_params(all_points, normalization_params['all_points_mean'], normalization_params['all_points_std'])
+        return all_points, all_points_mean, all_points_std
+        
 
     all_points_mean = all_points.reshape(
     -1, input_dim).mean(axis=0).reshape(1, 1, input_dim)

@@ -21,6 +21,7 @@ from tqdm import tqdm
 
 from vae_infer_utils.setup import setup
 from vae_infer_utils.run_utils import run_on_dataset, run_on_ho3d_subset
+from vae_infer_utils.data_utils import gather_evaluation_assets
 
 @logger.catch(onerror=lambda _: sys.exit(1), reraise=False)
 def infer(args, config):
@@ -30,10 +31,39 @@ def infer(args, config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     out_dir_base = '/scratch/clear/atiwari/datasets/ho3d_v3_processing/HO3D_v3'
     
-    run_on_ho3d_subset(trainer, batch_size, device, out_dir_base=out_dir_base)
+    # run_on_ho3d_subset(trainer, batch_size, device, out_dir_base=out_dir_base)
     # run_on_dataset(trainer, 'ho3d_2048')
     # Scaling params; Mean: [[[-0.00059158 -0.00091937 -0.00367902]]] | Std: [[[0.03672426]]]
+    
+    in_dir_grab = '../object_manipulation/evaluation/benchmark/benchmarking/data/processed/transformed_assets/grab_2048/'
+    in_fps_grab = gather_evaluation_assets(in_dir_grab)
+    out_fps_grab = [fp.replace("transformed_assets", "lion_embeds") for fp in in_fps_grab]
+    
+    grab_normalization_params = {
+        # 'all_points_mean': torch.tensor([[[-0.0012,  0.0006, -0.0026]]]).to(device='cuda:0', dtype=torch.float32),
+        'all_points_mean': np.asarray([[[-0.0012,  0.0006, -0.0026]]]),
+        # 'all_points_std': torch.tensor([[[0.0338]]]).to(device='cuda:0', dtype=torch.float32)
+        'all_points_std': np.asarray([[[0.0338]]])
+    }
 
+    in_dir_ho3d = '../object_manipulation/evaluation/benchmark/benchmarking/data/processed/transformed_assets/ho3d_2048/'
+    in_fps_ho3d = gather_evaluation_assets(in_dir_ho3d)
+    out_fps_ho3d = [fp.replace("transformed_assets", "lion_embeds") for fp in in_fps_ho3d]
+    breakpoint()
+    ho3d_normalization_params = {
+    # 'all_points_mean': torch.tensor([[[-0.00059158 -0.00091937 -0.00367902]]]).to(device=device, dtype=torch.float32),
+    'all_points_mean': np.asarray([[[-0.00059158 -0.00091937 -0.00367902]]]),
+    # 'all_points_std': torch.tensor([[[0.03672426]]]).to(device=device, dtype=torch.float32),
+    'all_points_std': np.asarray([[[0.03672426]]]),
+    }
+
+    run_on_dataset(trainer, 
+                   'custom', 
+                   in_fp=in_fps_ho3d,  # ATTENTION: Don't forget to change BELOW params
+                   out_fp=out_fps_ho3d, # ATTENTION: Don't forget to change above params
+                   normalization_params=ho3d_normalization_params # ATTENTION: Don't forget to change above params
+                   )
+    
     # run_on_dataset(trainer, 
     #                'custom', 
     #                in_fp='/scratch/clear/atiwari/datasets/ho3d_v3_processing/models_sampled/verts_2048/002_master_chef_can/textured_simple.obj',

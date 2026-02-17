@@ -11,12 +11,12 @@ from vae_infer_utils.data_utils import gather_data
 from vae_infer_utils.normalization import normalize, normalize_ho3d
 
 
-def run_on_dataset(trainer, data_name, in_fp=None, out_fp=None):
+def run_on_dataset(trainer, data_name, in_fp=None, out_fp=None, normalization_params=None):
     batch_size = 1
     all_pts, all_out_fps = gather_data(data_name, in_fp, out_fp)
 
     print(f"#### ALL PTS INFO ### | Shape: {all_pts.shape} | Mean: {all_pts.mean()} | Max: {all_pts.max()} | Min: {all_pts.min()} | Std: {all_pts.std()}")
-    all_pts_norm, all_pts_mean, all_pts_std = normalize(all_pts)
+    all_pts_norm, all_pts_mean, all_pts_std = normalize(all_pts, normalization_params)
     print(f"#### ALL PTS INFO ### | Shape: {all_pts_norm.shape} | Mean: {all_pts_norm.mean()} | Max: {all_pts_norm.max()} | Min: {all_pts_norm.min()} | Std: {all_pts_norm.std()}")
     
 
@@ -40,7 +40,8 @@ def run_on_dataset(trainer, data_name, in_fp=None, out_fp=None):
                     'mu': out['latent_list'][0][1][j].detach().cpu().numpy(),
                     'sigma': out['latent_list'][0][2][j].detach().cpu().numpy(),
                 }
-            np.savez_compressed(os.path.join(curr_out_fps[j], curr_out_fps[j].rstrip('/').split("/")[-1]+"_pred_info.npz"), **pred_info)
+            # np.savez_compressed(os.path.join(curr_out_fps[j], curr_out_fps[j].rstrip('/').split("/")[-1]+"_pred_info.npz"), **pred_info)
+            np.savez_compressed(curr_out_fps[j].replace(".ply", "_pred_info.npz"), **pred_info)
 
 def run_on_ho3d_subset(trainer, batch_size, device, out_dir_base):
     import sys
