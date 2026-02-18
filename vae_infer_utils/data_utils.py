@@ -35,10 +35,10 @@ def gather_data(data_name, in_fp=None, out_fp=None):
             'data_dir': '/scratch/clear/atiwari/datasets/ho3d_v3_processing/models_sampled/verts_2048/',
             'out_dir': '/scratch/clear/atiwari/datasets/ho3d_v3_processing/lion_output/verts_2048/'
         },
-        'shape_net_3k': {
-            'data_dir': '/scratch/clear/atiwari/datasets/ShapeNetCore.v2_subsetPC3K/ShapeNetCore.v2_subsetPC3K',
-            'out_dir': '/scratch/clear/atiwari/datasets/ShapeNetCore.v2_lion_embeds/ShapeNetCore.v2_lion_embeds/'
-        }
+        # 'shape_net_3k': {
+        #     'data_dir': '/scratch/clear/atiwari/datasets/ShapeNetCore.v2_subsetPC3K/ShapeNetCore.v2_subsetPC3K',
+        #     'out_dir': '/scratch/clear/atiwari/datasets/ShapeNetCore.v2_lion_embeds/ShapeNetCore.v2_lion_embeds/'
+        # },
         'custom': {
             'data_dir': '',
             'out_dir': '',

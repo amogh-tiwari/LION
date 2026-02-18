@@ -1,7 +1,7 @@
 import torch
 
 def _global_normalize_given_params(all_points, all_points_mean, all_points_std):
-    print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")
+    # print(f"Scaling params; Mean: {all_points_mean} | Std: {all_points_std}")
     all_points = (all_points - all_points_mean) / all_points_std
     return all_points, all_points_mean, all_points_std
 

@@ -1,5 +1,5 @@
 import torch
-from torch.utils import data
+from torch.utils.data import DataLoader
 
 import os
 import numpy as np
@@ -10,6 +10,9 @@ from tqdm import tqdm
 from vae_infer_utils.data_utils import gather_data
 from vae_infer_utils.normalization import normalize, normalize_ho3d
 
+import sys
+sys.path.insert(0, "../object_manipulation")
+from data.data_utils import get_dataset
 
 def run_on_dataset(trainer, data_name, in_fp=None, out_fp=None, normalization_params=None):
     batch_size = 1
@@ -44,12 +47,15 @@ def run_on_dataset(trainer, data_name, in_fp=None, out_fp=None, normalization_pa
             np.savez_compressed(curr_out_fps[j].replace(".ply", "_pred_info.npz"), **pred_info)
 
 def run_on_ho3d_subset(trainer, batch_size, device, out_dir_base):
+    print(f"!!! WARNING !!! DEPRECATED FUNCTION. Use 'run_using_data_loader' function instead. Exitting ...")
+    exit()
+    # DEPRECATED FUNCTION #
     import sys
     sys.path.append("../object_manipulation")
     from data.ho3d_loader import Ho3dData
 
     ho3d_train_set = Ho3dData('train_subset')
-    ho3d_train_loader = data.DataLoader(ho3d_train_set, batch_size=batch_size, shuffle=False, num_workers=0, drop_last=False)
+    ho3d_train_loader = DataLoader(ho3d_train_set, batch_size=batch_size, shuffle=False, num_workers=0, drop_last=False)
 
     for idx, batch in tqdm(enumerate(ho3d_train_loader), total=len(ho3d_train_loader), desc='iterating over ho3d'):
         inp_verts = batch['verts_object']
@@ -83,3 +89,41 @@ def run_on_ho3d_subset(trainer, batch_size, device, out_dir_base):
                 trimesh.PointCloud(out['x_0_pred'][j].detach().cpu().numpy()).export(os.path.join(out_dir_viz, frame_name+"_out.obj"))
 
     print(f"Saved results to {out_dir_base}")
+
+def run_using_data_loader(trainer, dataset_name, split, device, batch_size, num_workers, normalization_params=None, save_viz_freq=500):
+    dataset = get_dataset(dataset_name, split, read_processed=True)
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False, drop_last=False)
+
+    for idx, batch in tqdm(enumerate(data_loader), total=len(data_loader), desc=f"Processing: {split}"):
+        inp_verts = batch['verts_object']
+        inp_verts_orig = inp_verts.clone()
+
+        # print(f"Shape: {inp_verts.shape} | Mean: {inp_verts.mean()} | Max: {inp_verts.max()} | Min: {inp_verts.min()} | Std: {inp_verts.std()}")
+        inp_verts, all_points_mean, all_points_std = normalize(batch['verts_object'], normalization_params)
+        # print(f"Shape: {inp_verts.shape} | Mean: {inp_verts.mean()} | Max: {inp_verts.max()} | Min: {inp_verts.min()} | Std: {inp_verts.std()}")
+        
+        inp_verts = inp_verts.to(device=device, dtype=torch.float32)
+        out = trainer.model.recont(inp_verts)
+
+        assert dataset_name == "obman", "The below saving/visualization code is optimized for obman ... please change it if using diff. dataset."
+        n_samples = inp_verts.shape[0]
+        for j in range(n_samples):
+
+            path = batch['file_path'][j].replace("obman/", "lion_embeds/").replace("pkl", "npz")
+            out_dir = os.path.dirname(path)
+            os.makedirs(out_dir, exist_ok=True)
+            pred_info = {
+                    'mu': out['latent_list'][0][1][j].detach().cpu().numpy(),
+                    'sigma': out['latent_list'][0][2][j].detach().cpu().numpy(),
+                }
+            np.savez_compressed(path, **pred_info)
+
+            out_dir_viz = out_dir.replace("lion_embeds", "lion_embeds_viz")
+            os.makedirs(out_dir_viz, exist_ok=True)
+            if (idx * batch_size + j) % save_viz_freq == 0:
+                # os.makedirs(os.path.dirname(os.path.join(out_dir_viz, frame_name)), exist_ok=True)
+                trimesh.PointCloud(inp_verts_orig[j].detach().cpu().numpy()).export(path.replace(out_dir, out_dir_viz).replace(".npz", "_input.obj"))
+                trimesh.PointCloud(inp_verts[j].detach().cpu().numpy()).export(path.replace(out_dir, out_dir_viz).replace(".npz", "_input_norm.obj"))
+                trimesh.PointCloud(out['x_0_pred'][j].detach().cpu().numpy()).export(path.replace(out_dir, out_dir_viz).replace(".npz", "_output.obj"))
+
+    # print(f"Saved results to {out_dir_base}")

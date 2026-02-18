@@ -20,6 +20,7 @@ latent=1
 skip_weight=0.01 
 sigma_offset=6.0
 loss='l1_sum'
+num_points=3000
 
 vae_ckpt="./lion_ckpt/unconditional/all55/checkpoints/vae_only.pt"
 # vae_ckpt="./exp/regular/0114/all/f6a59dh_hvae_lion_B16/checkpoints/snapshot"
@@ -54,7 +55,7 @@ $ENT \
     shapelatent.prior_type normal \
     shapelatent.latent_dim $latent trainer.opt.lr $lr \
     shapelatent.kl_weight ${kl} \
-    shapelatent.decoder_num_points 2048 \
-    data.tr_max_sample_points 2048 data.te_max_sample_points 2048 \
+    shapelatent.decoder_num_points ${num_points} \
+    data.tr_max_sample_points ${num_points} data.te_max_sample_points ${num_points} \
     ddpm.loss_type $loss cmt "lion" \
     $DATA viz.viz_order [2,0,1] data.recenter_per_shape False data.normalize_global False data.normalize_shape_box True #True 
